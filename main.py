@@ -41,7 +41,7 @@ def checkValid(response):
         return False
     return True
 
-def main():
+if __name__ == "__main__":
     # TODO: Make number dynamic with Discogs API
     rand = str(random.randint(0, 25000000))
     response = requests.get("https://api.discogs.com/releases/" + rand).json()
@@ -50,5 +50,3 @@ def main():
         print(formatOutput(response))
     else:
         print("Something went wrong - try again")
-
-main()
