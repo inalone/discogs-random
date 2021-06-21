@@ -1,7 +1,9 @@
-import requests
+from bs4 import BeautifulSoup
 import random
+import requests
+import sys
 
-def displayGenres(genreList):
+def display_genres(genreList):
     first = True
     genres = ""
 
@@ -17,17 +19,19 @@ def displayGenres(genreList):
     
     return genres
 
-def formatOutput(response):
+def format_output(response, count):
     output = ""
     data_format = ["ID: ", "Artist: ", "Title: ", "Released: ", "Genres: ", "Link: "]
     data = ["id", "artists_sort", "title", "released", "genres", "uri"]
     
+    print(f"Release #{count + 1}:")
+
     for i in range(0, 6):
         try:
             response_data = response[data[i]]
 
             if i == 4:
-                response_data = displayGenres(response_data)
+                response_data = display_genres(response_data)
             
             output += data_format[i] + str(response_data) + "\n"
         except KeyError:
@@ -36,17 +40,48 @@ def formatOutput(response):
     return output
 
 # if an ID isn't valid, discogs will just send JSON response with the message key
-def checkValid(response):
+def check_valid_id(response):
     if 'message' in response:
         return False
     return True
 
-if __name__ == "__main__":
-    # TODO: Make number dynamic with Discogs API
-    rand = str(random.randint(0, 25000000))
-    response = requests.get("https://api.discogs.com/releases/" + rand).json()
+def get_discogs_release_amount():
+    discogs_page = requests.get("https://www.discogs.com/search/?ev=em_rs")
+    soup = BeautifulSoup(discogs_page.text, features="html5lib")
 
-    if checkValid(response):
-        print(formatOutput(response))
-    else:
-        print("Something went wrong - try again")
+    amount_text = soup.find(class_="pagination_total").text
+    amount_text = amount_text.split("of", 1)[1].strip()
+    amount = int(amount_text.replace(',', ''))
+
+    return amount
+
+if __name__ == "__main__":
+    releases = 1
+    if len(sys.argv) > 1:
+        try:
+            releases = int(sys.argv[1])
+        except:
+            pass
+    
+    discogs_release_amount = get_discogs_release_amount()
+
+    count = 0
+    explicit_no_singles = True
+    while count < releases:
+        rand = str(random.randint(0, discogs_release_amount))
+        response = requests.get("https://api.discogs.com/releases/" + rand).json()
+
+        if explicit_no_singles:
+            try:
+                descriptions = response["formats"][0]["descriptions"]
+                if "Single" in descriptions or ("7\"" in descriptions and "EP" not in descriptions):
+                    continue
+            except:
+                continue
+
+        if check_valid_id(response):
+            print(format_output(response, count))
+        else:
+            continue
+        
+        count += 1
